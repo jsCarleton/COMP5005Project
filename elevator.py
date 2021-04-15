@@ -146,14 +146,27 @@ class Environment():
         self.n += 1
 #        print("floor:", floor, "elevator:", elevator, "elevator floor:", self.floor[elevator], "distance: ", distance)
         self.total_distance += distance
+        self.floor[elevator] = floor
         return penalty
     
     def return_to(self, elevator, floor):
+        self.total_distance += abs(floor - self.floor[elevator])/2
         self.floor[elevator] = floor
         return floor
     
     def print_distance(self):
         print(self.total_distance/self.n)
+
+class DoNothing_Elevator():
+    def __init__(self, el_id, env, n_floors, k_r):
+        self.el_id = el_id
+        self.env = env
+        self.floor = n_floors/2
+        env.return_to(el_id, self.floor)
+
+    def carry_to(self, floor):
+        self.env.carry_to(self.el_id, floor)
+        self.floor = floor
 
 class LRI_Elevator():
     def __init__(self, el_id, env, n_floors, k_r):
@@ -197,12 +210,12 @@ class LRI_Elevator():
         self.floor = self.env.return_to(self.el_id, self.find_best_floor())
 
 class ElevatorBank():
-    def __init__(self, n_elevators, n_floors, call_probs, k_r):
+    def __init__(self, elevator_class, n_elevators, n_floors, call_probs, k_r):
         self.env = Environment(n_elevators, n_floors)
         self.n_elevators = n_elevators
         self.n_floors = n_floors
         self.call_probs = call_probs
-        self.elevators = [LRI_Elevator(i, self.env, n_floors, k_r) for i in range(n_elevators)]
+        self.elevators = [elevator_class(i, self.env, n_floors, k_r) for i in range(n_elevators)]
         
     def get_best_elevator(self, floor):
         best = self.n_floors*3
@@ -232,25 +245,49 @@ class ElevatorBank():
 #        print(self.elevators[0].floor, self.elevators[0].floor_probs)
 #        print(self.elevators[1].floor, self.elevators[1].floor_probs)
 
-print("AWT for L-RI models")
-print("-------------------")
+elevators = 1
+print("AWT for do-nothing models,", elevators, "elevators")
+print("--------------------------------------")
 for floors in floors_list:
-    bank = ElevatorBank(1, floors, get_normal_dist(floors), 0.1)
+    bank = ElevatorBank(DoNothing_Elevator, elevators, floors, get_normal_dist(floors), 0.1)
     bank.simulate(200000)
     print("Normal distribution,", floors, "floors:", bank.env.total_distance/200000)
 
 for b in bimodal_params:
-    bank = ElevatorBank(1, b[0], get_bimodal_dist(b[0], b[1], b[2], b[3]), 0.1)
+    bank = ElevatorBank(DoNothing_Elevator, elevators, b[0], get_bimodal_dist(b[0], b[1], b[2], b[3]), 0.1)
     bank.simulate(200000)
     print("Bimodal distribution,", b[0], "floors:", bank.env.total_distance/200000)
 
 for floors in floors_list:
-    bank = ElevatorBank(1, floors, get_exp_dist(floors), 0.1)
+    bank = ElevatorBank(DoNothing_Elevator, elevators, floors, get_exp_dist(floors), 0.1)
     bank.simulate(200000)
     print("Exponential distribution,", floors, "floors:", bank.env.total_distance/200000)
 
 for floors in floors_list:
-    bank = ElevatorBank(1, floors, get_rev_exp_dist(floors), 0.1)
+    bank = ElevatorBank(DoNothing_Elevator, elevators, floors, get_rev_exp_dist(floors), 0.1)
+    bank.simulate(200000)
+    print("Reverse exponential distribution,", floors, "floors:", bank.env.total_distance/200000)
+print()
+
+print("AWT for L-RI models,", elevators, "elevators")
+print("--------------------------------")
+for floors in floors_list:
+    bank = ElevatorBank(LRI_Elevator, elevators, floors, get_normal_dist(floors), 0.1)
+    bank.simulate(200000)
+    print("Normal distribution,", floors, "floors:", bank.env.total_distance/200000)
+
+for b in bimodal_params:
+    bank = ElevatorBank(LRI_Elevator, elevators, b[0], get_bimodal_dist(b[0], b[1], b[2], b[3]), 0.1)
+    bank.simulate(200000)
+    print("Bimodal distribution,", b[0], "floors:", bank.env.total_distance/200000)
+
+for floors in floors_list:
+    bank = ElevatorBank(LRI_Elevator, elevators, floors, get_exp_dist(floors), 0.1)
+    bank.simulate(200000)
+    print("Exponential distribution,", floors, "floors:", bank.env.total_distance/200000)
+
+for floors in floors_list:
+    bank = ElevatorBank(LRI_Elevator, elevators, floors, get_rev_exp_dist(floors), 0.1)
     bank.simulate(200000)
     print("Reverse exponential distribution,", floors, "floors:", bank.env.total_distance/200000)
 print()
