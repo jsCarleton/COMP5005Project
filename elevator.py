@@ -141,6 +141,9 @@ class Environment():
         self.total_distance = 0
         self.penalties = 0
 
+    def reset(self):
+        self.total_distance = 0
+        
     def get_call_floor(self):
        return get_random_floor(self.call_probs)
 
@@ -189,6 +192,9 @@ class Oracle_Elevator():
         self.floor = env.get_best_floor()
         self.rest_floors[self.floor] += 1
 
+    def get_best_floor(self):
+        return env.get_best_floor()
+
 class DoNothing_Elevator():
     def __init__(self, env, n_floors, k_r):
         self.env = env
@@ -197,6 +203,9 @@ class DoNothing_Elevator():
     def carry_to(self, call_floor, dest_floor):
         self.env.carry_to(self, call_floor, dest_floor, dest_floor)
         self.floor = dest_floor
+
+    def get_best_floor(self):
+        return self.floor
 
 class LRI_Elevator():
     def __init__(self, env, n_floors, k_r):
@@ -212,7 +221,7 @@ class LRI_Elevator():
         self.penalties = 0
         self.rest_floors = [0 for i in range(n_floors)]
 
-    def update_p_values(self, floor, penalty):
+    def update_state(self, floor, penalty):
         # update on reward
         if penalty == 0:
             total = 0.0
@@ -229,11 +238,18 @@ class LRI_Elevator():
             self.penalties += 1
 #            pass
 #        print(self.floor_probs)
+
+    def get_best_floor(self):
+        best_floor = 0
+        best_prob = 0
+        for i in range(self.n_floors):
+            if self.floor_probs[i] > best_prob:
+                best_floor = i
+                best_prob = self.floor_probs[i]
+        return best_floor
         
     def set_rest_floor(self):
-        for i in range(self.n_floors):
-            if self.floor_probs[i] > self.floor_probs[self.rest_floor]:
-                self.rest_floor = i
+        self.rest_floor = self.get_best_floor()
 #        print("best floor: ", best_floor)
 #        print("best prob: ", best_prob)
 
@@ -241,9 +257,73 @@ class LRI_Elevator():
         # tell the environment what we're doing, see if it rewards us
         self.set_rest_floor()
         reward = self.env.carry_to(self, call_floor, dest_floor, self.rest_floor)
-        self.update_p_values(self.floor, reward)
+        self.update_state(self.floor, reward)
         self.floor = self.rest_floor
         self.rest_floors[self.rest_floor] += 1
+
+class Pursuit_Elevator():
+    def __init__(self, env, n_floors, k_r):
+        self.env = env
+        self.n_floors = n_floors
+        self.floor_probs = [random.uniform(0, 1) for i in range(n_floors)]
+        self.floor_probs = np.array(self.floor_probs)
+        self.floor_probs = self.floor_probs/sum(self.floor_probs)
+        self.floor_probs = np.array([1/n_floors for i in range(n_floors)])
+        self.k_r = k_r
+        self.floor = n_floors//2
+        self.rest_floor = self.floor
+        self.penalties = 0
+        self.rest_floors = [0 for i in range(n_floors)]
+        self.rewards = [0 for i in range(n_floors)]
+        self.attempts = [0 for i in range(n_floors)]
+        my_floor = int(n_floors*random.uniform(0, 1))
+        for i in range(1000):
+            rest_floor = int(n_floors*random.uniform(0, 1))
+            call_floor = int(n_floors*random.uniform(0, 1))
+            dest_floor = int(n_floors*random.uniform(0, 1))
+            self.update_state(my_floor, self.env.carry_to(self, rest_floor,\
+                call_floor, rest_floor))
+            my_floor = rest_floor
+        self.env.reset()
+
+    def update_state(self, floor, penalty):
+        # update the rewards, attempts data
+        self.attempts[floor] += 1
+        self.rewards[floor] += (1 - penalty)
+        # find the most successful floor
+        best_floor = 0
+        best_reward_rate = 0
+        for i in range(self.n_floors):
+            if self.attempts[i] > 0 and self.rewards[i]/self.attempts[i] > best_reward_rate:
+                best_floor = i
+                best_reward_rate = self.rewards[i]/self.attempts[i]
+        # create the unit vector for that floor
+        e_b = np.array([1 if i == best_floor else 0 for i in range(self.n_floors)])
+        # update the p values
+        self.floor_probs = (1 - self.k_r)*self.floor_probs + self.k_r*e_b
+        
+    def get_best_floor(self):
+        best_floor = 0
+        best_prob = 0
+        for i in range(self.n_floors):
+            if self.floor_probs[i] > best_prob:
+                best_floor = i
+                best_prob = self.floor_probs[i]
+        return best_floor
+        
+    def set_rest_floor(self):
+        self.rest_floor = self.get_best_floor()
+#        print("best floor: ", best_floor)
+#        print("best prob: ", best_prob)
+
+    def carry_to(self, call_floor, dest_floor):
+        # tell the environment what we're doing, see if it rewards us
+        self.set_rest_floor()
+        reward = self.env.carry_to(self, call_floor, dest_floor, self.rest_floor)
+        self.update_state(self.floor, reward)
+        self.floor = self.rest_floor
+        self.rest_floors[self.rest_floor] += 1
+
 
 class ElevatorBank():
     def __init__(self, env, elevator_class, n_elevators, n_floors, k_r):
@@ -287,14 +367,14 @@ class ElevatorBank():
 #        print(self.elevators[1].floor, self.elevators[1].floor_probs)
 
 elevators = 1
-iterations = 1000
+iterations = 100
 print("AWT for Oracle models,", elevators, "elevators")
 print("----------------------------------")
 for floors in floors_list:
     env = Environment(get_normal_dist(floors), get_normal_dist(floors), elevators, floors)
     bank = ElevatorBank(env, Oracle_Elevator, elevators, floors, 0.1)
     bank.simulate(iterations)
-    print("Normal,", floors, "floors:", env.total_distance/iterations)
+    print("Normal,", floors, "floors:", env.total_distance/iterations, bank.elevators[0].get_best_floor())
 #    print("Penalties:", env.penalties)
 #    print("Calls:", bank.calls)
 #    print("Rest floors:", bank.elevators[0].rest_floors)
@@ -303,7 +383,7 @@ for b in bimodal_params:
     env = Environment(get_bimodal_dist(b[0], b[1], b[2], b[3]), get_bimodal_dist(b[0], b[1], b[2], b[3]), elevators, b[0])
     bank = ElevatorBank(env, Oracle_Elevator, elevators, b[0],  0.1)
     bank.simulate(iterations)
-    print("Bimodal,", b[0], "floors:", env.total_distance/iterations)
+    print("Bimodal,", b[0], "floors:", env.total_distance/iterations, bank.elevators[0].get_best_floor())
  #   print("Penalties:", env.penalties)
  #   print("Calls:", bank.calls)
 
@@ -311,7 +391,7 @@ for floors in floors_list:
     env = Environment(get_exp_dist(floors), get_exp_dist(floors), elevators, floors)
     bank = ElevatorBank(env, Oracle_Elevator, elevators, floors, 0.1)
     bank.simulate(iterations)
-    print("Exponential,", floors, "floors:", env.total_distance/iterations)
+    print("Exponential,", floors, "floors:", env.total_distance/iterations, bank.elevators[0].get_best_floor())
  #   print("Penalties:", env.penalties)
  #   print("Calls:", bank.calls)
 
@@ -319,7 +399,7 @@ for floors in floors_list:
     env = Environment(get_rev_exp_dist(floors), get_rev_exp_dist(floors), elevators, floors)
     bank = ElevatorBank(env, Oracle_Elevator, elevators, floors, 0.1)
     bank.simulate(iterations)
-    print("Reverse exponential,", floors, "floors:", env.total_distance/iterations)
+    print("Reverse exponential,", floors, "floors:", env.total_distance/iterations, bank.elevators[0].get_best_floor())
  #   print("Penalties:", env.penalties)
  #   print("Calls:", bank.calls)
 print()
@@ -330,7 +410,7 @@ for floors in floors_list:
     env = Environment(get_normal_dist(floors), get_normal_dist(floors), elevators, floors)
     bank = ElevatorBank(env, DoNothing_Elevator, elevators, floors, 0.1)
     bank.simulate(iterations)
-    print("Normal,", floors, "floors:", env.total_distance/iterations)
+    print("Normal,", floors, "floors:", env.total_distance/iterations, bank.elevators[0].get_best_floor())
  #   print("Penalties:", env.penalties)
  #   print("Calls:", bank.calls)
 
@@ -338,7 +418,7 @@ for b in bimodal_params:
     env = Environment(get_bimodal_dist(b[0], b[1], b[2], b[3]), get_bimodal_dist(b[0], b[1], b[2], b[3]), elevators, b[0])
     bank = ElevatorBank(env, DoNothing_Elevator, elevators, b[0],  0.1)
     bank.simulate(iterations)
-    print("Bimodal,", b[0], "floors:", env.total_distance/iterations)
+    print("Bimodal,", b[0], "floors:", env.total_distance/iterations, bank.elevators[0].get_best_floor())
  #   print("Penalties:", env.penalties)
  #   print("Calls:", bank.calls)
 
@@ -346,7 +426,7 @@ for floors in floors_list:
     env = Environment(get_exp_dist(floors), get_exp_dist(floors), elevators, floors)
     bank = ElevatorBank(env, DoNothing_Elevator, elevators, floors, 0.1)
     bank.simulate(iterations)
-    print("Exponential,", floors, "floors:", env.total_distance/iterations)
+    print("Exponential,", floors, "floors:", env.total_distance/iterations, bank.elevators[0].get_best_floor())
  #   print("Penalties:", env.penalties)
  #   print("Calls:", bank.calls)
 
@@ -354,7 +434,7 @@ for floors in floors_list:
     env = Environment(get_rev_exp_dist(floors), get_rev_exp_dist(floors), elevators, floors)
     bank = ElevatorBank(env, DoNothing_Elevator, elevators, floors, 0.1)
     bank.simulate(iterations)
-    print("Reverse exponential,", floors, "floors:", env.total_distance/iterations)
+    print("Reverse exponential,", floors, "floors:", env.total_distance/iterations, bank.elevators[0].get_best_floor())
  #   print("Penalties:", env.penalties)
  #   print("Calls:", bank.calls)
 print()
@@ -365,7 +445,7 @@ for floors in floors_list:
     env = Environment(get_normal_dist(floors), get_normal_dist(floors), elevators, floors)
     bank = ElevatorBank(env, LRI_Elevator, elevators, floors, 0.1)
     bank.simulate(iterations)
-    print("Normal,", floors, "floors:", env.total_distance/iterations)
+    print("Normal,", floors, "floors:", env.total_distance/iterations, bank.elevators[0].get_best_floor())
 #    print(bank.elevators[0].floor_probs)
 #    print("Penalties:", env.penalties)
 #    print("ePenalties:", bank.elevators[0].penalties)
@@ -376,7 +456,7 @@ for b in bimodal_params:
     env = Environment(get_bimodal_dist(b[0], b[1], b[2], b[3]), get_bimodal_dist(b[0], b[1], b[2], b[3]), elevators, b[0])
     bank = ElevatorBank(env, LRI_Elevator, elevators, b[0],  0.1)
     bank.simulate(iterations)
-    print("Bimodal,", b[0], "floors:", env.total_distance/iterations)
+    print("Bimodal,", b[0], "floors:", env.total_distance/iterations, bank.elevators[0].get_best_floor())
  #   print(bank.elevators[0].floor_probs)
  #   print("Penalties:", env.penalties)
  #   print("ePenalties:", bank.elevators[0].penalties)
@@ -387,7 +467,7 @@ for floors in floors_list:
     env = Environment(get_exp_dist(floors), get_exp_dist(floors), elevators, floors)
     bank = ElevatorBank(env, LRI_Elevator, elevators, floors, 0.1)
     bank.simulate(iterations)
-    print("Exponential,", floors, "floors:", env.total_distance/iterations)
+    print("Exponential,", floors, "floors:", env.total_distance/iterations, bank.elevators[0].get_best_floor())
  #   print(bank.elevators[0].floor_probs)
  #   print("Penalties:", env.penalties)
  #   print("ePenalties:", bank.elevators[0].penalties)
@@ -398,7 +478,7 @@ for floors in floors_list:
     env = Environment(get_rev_exp_dist(floors), get_rev_exp_dist(floors), elevators, floors)
     bank = ElevatorBank(env, LRI_Elevator, elevators, floors, 0.1)
     bank.simulate(iterations)
-    print("Reverse exponential,", floors, "floors:", env.total_distance/iterations)
+    print("Reverse exponential,", floors, "floors:", env.total_distance/iterations, bank.elevators[0].get_best_floor())
   #  print(bank.elevators[0].floor_probs)
   #  print("Penalties:", env.penalties)
   #  print("ePenalties:", bank.elevators[0].penalties)
@@ -406,6 +486,54 @@ for floors in floors_list:
   #  print("Rest floors:", bank.elevators[0].rest_floors)
 print()
 
+print("AWT for Pursuit models,", elevators, "elevators")
+print("-----------------------------------")
+for floors in floors_list:
+    env = Environment(get_normal_dist(floors), get_normal_dist(floors), elevators, floors)
+    bank = ElevatorBank(env, Pursuit_Elevator, elevators, floors, 0.1)
+    bank.simulate(iterations)
+    print("Normal,", floors, "floors:", env.total_distance/iterations, bank.elevators[0].get_best_floor())
+#    print(bank.elevators[0].floor_probs)
+#    print(bank.elevators[0].rewards)
+#    print(bank.elevators[0].attempts)
+#    print("Penalties:", env.penalties)
+#    print("ePenalties:", bank.elevators[0].penalties)
+#    print("Calls:", bank.calls)
+#    print("Rest floors:", bank.elevators[0].rest_floors)
+
+for b in bimodal_params:
+    env = Environment(get_bimodal_dist(b[0], b[1], b[2], b[3]), get_bimodal_dist(b[0], b[1], b[2], b[3]), elevators, b[0])
+    bank = ElevatorBank(env, Pursuit_Elevator, elevators, b[0],  0.1)
+    bank.simulate(iterations)
+    print("Bimodal,", b[0], "floors:", env.total_distance/iterations, bank.elevators[0].get_best_floor())
+ #   print(bank.elevators[0].floor_probs)
+ #   print("Penalties:", env.penalties)
+ #   print("ePenalties:", bank.elevators[0].penalties)
+ #   print("Calls:", bank.calls)
+ #   print("Rest floors:", bank.elevators[0].rest_floors)
+
+for floors in floors_list:
+    env = Environment(get_exp_dist(floors), get_exp_dist(floors), elevators, floors)
+    bank = ElevatorBank(env, Pursuit_Elevator, elevators, floors, 0.1)
+    bank.simulate(iterations)
+    print("Exponential,", floors, "floors:", env.total_distance/iterations, bank.elevators[0].get_best_floor())
+ #   print(bank.elevators[0].floor_probs)
+ #   print("Penalties:", env.penalties)
+ #   print("ePenalties:", bank.elevators[0].penalties)
+ #   print("Calls:", bank.calls)
+ #   print("Rest floors:", bank.elevators[0].rest_floors)
+
+for floors in floors_list:
+    env = Environment(get_rev_exp_dist(floors), get_rev_exp_dist(floors), elevators, floors)
+    bank = ElevatorBank(env, Pursuit_Elevator, elevators, floors, 0.1)
+    bank.simulate(iterations)
+    print("Reverse exponential,", floors, "floors:", env.total_distance/iterations, bank.elevators[0].get_best_floor())
+  #  print(bank.elevators[0].floor_probs)
+  #  print("Penalties:", env.penalties)
+  #  print("ePenalties:", bank.elevators[0].penalties)
+  #  print("Calls:", bank.calls)
+  #  print("Rest floors:", bank.elevators[0].rest_floors)
+print()
 
 #total = 0
 #for i in range(1):
