@@ -6,10 +6,7 @@ import matplotlib.pyplot as plt
 import random
 import math
 
-print(np.__version__)
-
 # functions to create probability distributions
-
 def get_exp_dist(n_floors):
     x = np.arange(1, n_floors+1)
     prob = ss.expon.cdf(x + 0.5, loc=0, scale=n_floors/4)\
@@ -34,33 +31,80 @@ def get_bimodal_dist(n_floors, peak1, peak2, var):
     p = p1 + 4*p2/3
     return p/p.sum()
 
+# frozen distributions that we use for testing purposes
+normal_dist = {8: np.array([0.08249252, 0.11477478, 0.14304307, 0.15968963, 0.15968963, 0.14304307,
+ 0.11477478, 0.08249252]),
+ 12: np.array([0.02623387, 0.04549071, 0.07065904, 0.09831043, 0.12252366, 0.13678229,
+ 0.13678229, 0.12252366, 0.09831043, 0.07065904, 0.04549071, 0.02623387]),
+ 16:  np.array([0.00603115, 0.01303466, 0.02523353, 0.04375607, 0.0679647,  0.0945617,
+ 0.11785164, 0.13156656, 0.13156656, 0.11785164, 0.0945617,  0.0679647,
+ 0.04375607, 0.02523353, 0.01303466, 0.00603115]),
+20:  np.array([0.00092163, 0.00248261, 0.00599009, 0.01294591, 0.02506173, 0.04345816,
+ 0.06750196, 0.09391788, 0.11704925, 0.13067079, 0.13067079, 0.11704925,
+ 0.09391788, 0.06750196, 0.04345816, 0.02506173, 0.01294591, 0.00599009,
+ 0.00248261, 0.00092163])}
+bimodal_dist = {8:  np.array([0.11101535, 0.17586142, 0.11115571, 0.03148955, 0.03985109, 0.14812573,
+ 0.23448069, 0.14802046]),
+12: np.array([0.05801863, 0.08399082, 0.09603029, 0.08920317, 0.07454183, 0.07047585,
+ 0.08535406, 0.10840567, 0.11866747, 0.10420975, 0.07205295, 0.03904951]),
+16: np.array([0.05709516, 0.06741996, 0.07146879, 0.06830664, 0.05960559, 0.04913846,
+ 0.04134911, 0.03971162, 0.0454987,  0.05726739, 0.07119836, 0.08232936,
+ 0.08640746, 0.08159712, 0.06912519, 0.05248108]),
+20: np.array([0.03935687, 0.05183086, 0.06115673, 0.06468768, 0.06144675, 0.05272956,
+ 0.04166456, 0.03204442, 0.0270987,  0.02866602, 0.03678682, 0.0495866,
+ 0.06353425, 0.07432238, 0.07833311, 0.07408299, 0.06279247, 0.04768184,
+ 0.03243443, 0.01976293])}
+exp_dist = {8: np.array([0.40081044, 0.24310382, 0.14744992, 0.0894329, 0.05424379, 0.03290052,
+ 0.01995518, 0.01210343]),
+12: np.array([0.28875747, 0.20690377, 0.14825303, 0.10622794, 0.07611564, 0.05453924,
+ 0.03907907, 0.02800138, 0.02006387, 0.01437639, 0.01030113, 0.00738108]),
+16: np.array([0.22532621, 0.17548423, 0.13666726, 0.10643657, 0.08289288, 0.06455704,
+ 0.05027707, 0.03915582, 0.03049459, 0.02374921, 0.0184959,  0.01440462,
+ 0.01121833, 0.00873685, 0.00680426, 0.00529916]),
+20: np.array([0.18465125, 0.15117966, 0.12377544, 0.10133876, 0.08296916, 0.0679294,
+ 0.05561589, 0.04553444, 0.03728044, 0.03052265, 0.02498983, 0.02045994,
+ 0.01675118, 0.01371471, 0.01122865, 0.00919324, 0.00752679, 0.00616242,
+ 0.00504536, 0.00413079])}
+rev_exp_dist = {8: np.array([0.01210343, 0.01995518, 0.03290052, 0.05424379, 0.0894329, 0.14744992,
+ 0.24310382, 0.40081044]),
+12: np.array([0.00738108, 0.01030113, 0.01437639, 0.02006387, 0.02800138, 0.03907907,
+ 0.05453924, 0.07611564, 0.10622794, 0.14825303, 0.20690377, 0.28875747]),
+16: np.array([0.00529916, 0.00680426, 0.00873685, 0.01121833, 0.01440462, 0.0184959,
+ 0.02374921, 0.03049459, 0.03915582, 0.05027707, 0.06455704, 0.08289288,
+ 0.10643657, 0.13666726, 0.17548423, 0.22532621]),
+20: np.array([0.00413079, 0.00504536, 0.00616242, 0.00752679, 0.00919324, 0.01122865,
+ 0.01371471, 0.01675118, 0.02045994, 0.02498983, 0.03052265, 0.03728044,
+ 0.04553444, 0.05561589, 0.0679294,  0.08296916, 0.10133876, 0.12377544,
+ 0.15117966, 0.18465125])}
+
 # print sample results for distributions
 floors_list = [8, 12, 16, 20]
-print("Gaussian distributions")
-for floors in floors_list:
-    p = get_normal_dist(floors)
-    print(floors, " floors:", p, "sum =", p.sum())
-    _ = plt.hist(np.random.choice(np.arange(1, floors+1), size = 10000, p=p), bins=floors)
-
-print("Bimodal distributions")
 bimodal_params = [[8, 2, 7, 1], [12, 3, 9, 2], [16, 3, 13, 3], [20, 4, 15, 3]]
-for b in bimodal_params:
-    p = get_bimodal_dist(b[0], b[1], b[2], b[3])
-    print(b[0], " floors:", p, "sum =", p.sum())
-    _ = plt.hist(np.random.choice(np.arange(1, b[0]+1), size = 10000, p=p), bins=b[0])
+if 1 == 0:
+    print("Gaussian distributions")
+    for floors in floors_list:
+        p = get_normal_dist(floors)
+        print(floors, " floors:", p, "sum =", p.sum())
+        _ = plt.hist(np.random.choice(np.arange(1, floors+1), size = 10000, p=p), bins=floors)
 
-print("Exponential distributions")
-for floors in floors_list:
-    p = get_exp_dist(floors)
-    print(floors, " floors:", p, "sum =", p.sum())
-    _ = plt.hist(np.random.choice(np.arange(1, floors+1), size = 10000, p=p), bins=floors)
+    print("Bimodal distributions")
+    for b in bimodal_params:
+        p = get_bimodal_dist(b[0], b[1], b[2], b[3])
+        print(b[0], " floors:", p, "sum =", p.sum())
+        _ = plt.hist(np.random.choice(np.arange(1, b[0]+1), size = 10000, p=p), bins=b[0])
 
-print("Reverse exponential distributions")
-for floors in floors_list:
-    p = get_rev_exp_dist(floors)
-    print(floors, " floors:", p, "sum =", p.sum())
-    _ = plt.hist(np.random.choice(np.arange(1, floors+1), size = 10000, p=p), bins=floors)
-print()
+    print("Exponential distributions")
+    for floors in floors_list:
+        p = get_exp_dist(floors)
+        print(floors, " floors:", p, "sum =", p.sum())
+        _ = plt.hist(np.random.choice(np.arange(1, floors+1), size = 10000, p=p), bins=floors)
+
+    print("Reverse exponential distributions")
+    for floors in floors_list:
+        p = get_rev_exp_dist(floors)
+        print(floors, " floors:", p, "sum =", p.sum())
+        _ = plt.hist(np.random.choice(np.arange(1, floors+1), size = 10000, p=p), bins=floors)
+    print()
 
 # function to return a random floor given a probability distribution
 def get_random_floor(call_probs):
@@ -368,173 +412,23 @@ class ElevatorBank():
 
 elevators = 1
 iterations = 100
-print("AWT for Oracle models,", elevators, "elevators")
-print("----------------------------------")
-for floors in floors_list:
-    env = Environment(get_normal_dist(floors), get_normal_dist(floors), elevators, floors)
-    bank = ElevatorBank(env, Oracle_Elevator, elevators, floors, 0.1)
-    bank.simulate(iterations)
-    print("Normal,", floors, "floors:", env.total_distance/iterations, bank.elevators[0].get_best_floor())
-#    print("Penalties:", env.penalties)
-#    print("Calls:", bank.calls)
-#    print("Rest floors:", bank.elevators[0].rest_floors)
-
-for b in bimodal_params:
-    env = Environment(get_bimodal_dist(b[0], b[1], b[2], b[3]), get_bimodal_dist(b[0], b[1], b[2], b[3]), elevators, b[0])
-    bank = ElevatorBank(env, Oracle_Elevator, elevators, b[0],  0.1)
-    bank.simulate(iterations)
-    print("Bimodal,", b[0], "floors:", env.total_distance/iterations, bank.elevators[0].get_best_floor())
- #   print("Penalties:", env.penalties)
- #   print("Calls:", bank.calls)
-
-for floors in floors_list:
-    env = Environment(get_exp_dist(floors), get_exp_dist(floors), elevators, floors)
-    bank = ElevatorBank(env, Oracle_Elevator, elevators, floors, 0.1)
-    bank.simulate(iterations)
-    print("Exponential,", floors, "floors:", env.total_distance/iterations, bank.elevators[0].get_best_floor())
- #   print("Penalties:", env.penalties)
- #   print("Calls:", bank.calls)
-
-for floors in floors_list:
-    env = Environment(get_rev_exp_dist(floors), get_rev_exp_dist(floors), elevators, floors)
-    bank = ElevatorBank(env, Oracle_Elevator, elevators, floors, 0.1)
-    bank.simulate(iterations)
-    print("Reverse exponential,", floors, "floors:", env.total_distance/iterations, bank.elevators[0].get_best_floor())
- #   print("Penalties:", env.penalties)
- #   print("Calls:", bank.calls)
-print()
-
-print("AWT for do-nothing models,", elevators, "elevators")
-print("--------------------------------------")
-for floors in floors_list:
-    env = Environment(get_normal_dist(floors), get_normal_dist(floors), elevators, floors)
-    bank = ElevatorBank(env, DoNothing_Elevator, elevators, floors, 0.1)
-    bank.simulate(iterations)
-    print("Normal,", floors, "floors:", env.total_distance/iterations, bank.elevators[0].get_best_floor())
- #   print("Penalties:", env.penalties)
- #   print("Calls:", bank.calls)
-
-for b in bimodal_params:
-    env = Environment(get_bimodal_dist(b[0], b[1], b[2], b[3]), get_bimodal_dist(b[0], b[1], b[2], b[3]), elevators, b[0])
-    bank = ElevatorBank(env, DoNothing_Elevator, elevators, b[0],  0.1)
-    bank.simulate(iterations)
-    print("Bimodal,", b[0], "floors:", env.total_distance/iterations, bank.elevators[0].get_best_floor())
- #   print("Penalties:", env.penalties)
- #   print("Calls:", bank.calls)
-
-for floors in floors_list:
-    env = Environment(get_exp_dist(floors), get_exp_dist(floors), elevators, floors)
-    bank = ElevatorBank(env, DoNothing_Elevator, elevators, floors, 0.1)
-    bank.simulate(iterations)
-    print("Exponential,", floors, "floors:", env.total_distance/iterations, bank.elevators[0].get_best_floor())
- #   print("Penalties:", env.penalties)
- #   print("Calls:", bank.calls)
-
-for floors in floors_list:
-    env = Environment(get_rev_exp_dist(floors), get_rev_exp_dist(floors), elevators, floors)
-    bank = ElevatorBank(env, DoNothing_Elevator, elevators, floors, 0.1)
-    bank.simulate(iterations)
-    print("Reverse exponential,", floors, "floors:", env.total_distance/iterations, bank.elevators[0].get_best_floor())
- #   print("Penalties:", env.penalties)
- #   print("Calls:", bank.calls)
-print()
-
-print("AWT for L-RI models,", elevators, "elevators")
-print("--------------------------------")
-for floors in floors_list:
-    env = Environment(get_normal_dist(floors), get_normal_dist(floors), elevators, floors)
-    bank = ElevatorBank(env, LRI_Elevator, elevators, floors, 0.1)
-    bank.simulate(iterations)
-    print("Normal,", floors, "floors:", env.total_distance/iterations, bank.elevators[0].get_best_floor())
-#    print(bank.elevators[0].floor_probs)
-#    print("Penalties:", env.penalties)
-#    print("ePenalties:", bank.elevators[0].penalties)
-#    print("Calls:", bank.calls)
-#    print("Rest floors:", bank.elevators[0].rest_floors)
-
-for b in bimodal_params:
-    env = Environment(get_bimodal_dist(b[0], b[1], b[2], b[3]), get_bimodal_dist(b[0], b[1], b[2], b[3]), elevators, b[0])
-    bank = ElevatorBank(env, LRI_Elevator, elevators, b[0],  0.1)
-    bank.simulate(iterations)
-    print("Bimodal,", b[0], "floors:", env.total_distance/iterations, bank.elevators[0].get_best_floor())
- #   print(bank.elevators[0].floor_probs)
- #   print("Penalties:", env.penalties)
- #   print("ePenalties:", bank.elevators[0].penalties)
- #   print("Calls:", bank.calls)
- #   print("Rest floors:", bank.elevators[0].rest_floors)
-
-for floors in floors_list:
-    env = Environment(get_exp_dist(floors), get_exp_dist(floors), elevators, floors)
-    bank = ElevatorBank(env, LRI_Elevator, elevators, floors, 0.1)
-    bank.simulate(iterations)
-    print("Exponential,", floors, "floors:", env.total_distance/iterations, bank.elevators[0].get_best_floor())
- #   print(bank.elevators[0].floor_probs)
- #   print("Penalties:", env.penalties)
- #   print("ePenalties:", bank.elevators[0].penalties)
- #   print("Calls:", bank.calls)
- #   print("Rest floors:", bank.elevators[0].rest_floors)
-
-for floors in floors_list:
-    env = Environment(get_rev_exp_dist(floors), get_rev_exp_dist(floors), elevators, floors)
-    bank = ElevatorBank(env, LRI_Elevator, elevators, floors, 0.1)
-    bank.simulate(iterations)
-    print("Reverse exponential,", floors, "floors:", env.total_distance/iterations, bank.elevators[0].get_best_floor())
-  #  print(bank.elevators[0].floor_probs)
-  #  print("Penalties:", env.penalties)
-  #  print("ePenalties:", bank.elevators[0].penalties)
-  #  print("Calls:", bank.calls)
-  #  print("Rest floors:", bank.elevators[0].rest_floors)
-print()
-
-print("AWT for Pursuit models,", elevators, "elevators")
-print("-----------------------------------")
-for floors in floors_list:
-    env = Environment(get_normal_dist(floors), get_normal_dist(floors), elevators, floors)
-    bank = ElevatorBank(env, Pursuit_Elevator, elevators, floors, 0.1)
-    bank.simulate(iterations)
-    print("Normal,", floors, "floors:", env.total_distance/iterations, bank.elevators[0].get_best_floor())
-#    print(bank.elevators[0].floor_probs)
-#    print(bank.elevators[0].rewards)
-#    print(bank.elevators[0].attempts)
-#    print("Penalties:", env.penalties)
-#    print("ePenalties:", bank.elevators[0].penalties)
-#    print("Calls:", bank.calls)
-#    print("Rest floors:", bank.elevators[0].rest_floors)
-
-for b in bimodal_params:
-    env = Environment(get_bimodal_dist(b[0], b[1], b[2], b[3]), get_bimodal_dist(b[0], b[1], b[2], b[3]), elevators, b[0])
-    bank = ElevatorBank(env, Pursuit_Elevator, elevators, b[0],  0.1)
-    bank.simulate(iterations)
-    print("Bimodal,", b[0], "floors:", env.total_distance/iterations, bank.elevators[0].get_best_floor())
- #   print(bank.elevators[0].floor_probs)
- #   print("Penalties:", env.penalties)
- #   print("ePenalties:", bank.elevators[0].penalties)
- #   print("Calls:", bank.calls)
- #   print("Rest floors:", bank.elevators[0].rest_floors)
-
-for floors in floors_list:
-    env = Environment(get_exp_dist(floors), get_exp_dist(floors), elevators, floors)
-    bank = ElevatorBank(env, Pursuit_Elevator, elevators, floors, 0.1)
-    bank.simulate(iterations)
-    print("Exponential,", floors, "floors:", env.total_distance/iterations, bank.elevators[0].get_best_floor())
- #   print(bank.elevators[0].floor_probs)
- #   print("Penalties:", env.penalties)
- #   print("ePenalties:", bank.elevators[0].penalties)
- #   print("Calls:", bank.calls)
- #   print("Rest floors:", bank.elevators[0].rest_floors)
-
-for floors in floors_list:
-    env = Environment(get_rev_exp_dist(floors), get_rev_exp_dist(floors), elevators, floors)
-    bank = ElevatorBank(env, Pursuit_Elevator, elevators, floors, 0.1)
-    bank.simulate(iterations)
-    print("Reverse exponential,", floors, "floors:", env.total_distance/iterations, bank.elevators[0].get_best_floor())
-  #  print(bank.elevators[0].floor_probs)
-  #  print("Penalties:", env.penalties)
-  #  print("ePenalties:", bank.elevators[0].penalties)
-  #  print("Calls:", bank.calls)
-  #  print("Rest floors:", bank.elevators[0].rest_floors)
-print()
-
+elevator_types = {"Oracle": Oracle_Elevator, "Do Nothing": DoNothing_Elevator, "L-RI": LRI_Elevator, "Pursuit": Pursuit_Elevator}
+distributions = {"Normal": normal_dist, "Bimodal": bimodal_dist, "Exponential": exp_dist, "Reverse exponential": rev_exp_dist}
+for etype in elevator_types:
+    print("AWT for", etype, "models,", elevators, "elevators")
+    print("----------------------------------")
+    for dist in distributions:
+        for floors in floors_list:
+            env = Environment(distributions[dist][floors], distributions[dist][floors], elevators, floors)
+            bank = ElevatorBank(env, elevator_types[etype], elevators, floors, 0.1)
+            bank.simulate(iterations)
+            print(dist, floors, "floors:", env.total_distance/iterations, bank.elevators[0].get_best_floor())
+#           print(bank.elevators[0].floor_probs)
+#           print("Penalties:", env.penalties)
+#           print("ePenalties:", bank.elevators[0].penalties)
+#           print("Calls:", bank.calls)
+#           print("Rest floors:", bank.elevators[0].rest_floors)
+    print()
 #total = 0
 #for i in range(1):
 #    bank = ElevatorBank(1, 20, get_normal_dist(20), 0.1)
