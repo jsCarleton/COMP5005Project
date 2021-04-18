@@ -1,3 +1,4 @@
+#%matplotlib inline
 from scipy.stats import norm
 from scipy.stats import expon
 import scipy.stats as ss
@@ -7,7 +8,7 @@ import random
 import math
 
 # functions to create probability distributions
-if 1 == 0:
+if 0 == 1:
     def get_exp_dist(n_floors):
         x = np.arange(1, n_floors+1)
         prob = ss.expon.cdf(x + 0.5, loc=0, scale=n_floors/4)\
@@ -85,12 +86,13 @@ rev_exp_dist = {8: np.array([0.01210343, 0.01995518, 0.03290052, 0.05424379, 0.0
 # print sample results for distributions
 floors_list = [8, 12, 16, 20]
 bimodal_params = [[8, 2, 7, 1], [12, 3, 9, 2], [16, 3, 13, 3], [20, 4, 15, 3]]
-if 1 == 0:
+if 0 == 1:
     print("Gaussian distributions")
     for floors in floors_list:
         p = get_normal_dist(floors)
         print(floors, " floors:", p, "sum =", p.sum())
         _ = plt.hist(np.random.choice(np.arange(1, floors+1), size = 10000, p=p), bins=floors)
+        plt.show()
 
     print("Bimodal distributions")
     for b in bimodal_params:
@@ -204,8 +206,7 @@ for floors in floors_list:
     print("Reverse exponential,", floors, "floors:", opaque_model(rev_exp_dist[floors], 1000))
 print()
 
-class Environment():
-    
+class Environment():  
     def __init__(self, call_probs, dest_probs, n_elevators, n_floors):
         self.n = 0
         self.call_probs = call_probs
@@ -213,9 +214,13 @@ class Environment():
         self.n_floors = n_floors
         self.total_distance = 0
         self.penalties = 0
+        self.AWT = []
 
     def reset(self):
+        self.n = 0
         self.total_distance = 0
+        self.AWT = []
+        self.penalties = 0
         
     def get_call_floor(self):
        return get_random_floor(self.call_probs)
@@ -234,6 +239,8 @@ class Environment():
 #        print("floor:", floor, "elevator:", elevator, "elevator floor:", self.floor[elevator], "distance: ", distance)
         self.total_distance += distance
 #        elevator.floor = rest_floor
+        # record the update average distance
+        self.AWT.append(avg_dist)
         return penalty
 
     def get_best_floor(self):
@@ -398,7 +405,6 @@ class Pursuit_Elevator():
         self.floor = self.rest_floor
         self.rest_floors[self.rest_floor] += 1
 
-
 class ElevatorBank():
     def __init__(self, env, elevator_class, n_elevators, n_floors, k_r):
         self.env = env
@@ -440,34 +446,15 @@ class ElevatorBank():
 #        print(self.elevators[0].floor, self.elevators[0].floor_probs)
 #        print(self.elevators[1].floor, self.elevators[1].floor_probs)
 
-elevators = 2
-iterations = 100
-iterations = 1000
+ensembles = 1
+floors_list = [8, 12, 16, 20]
+elevators = 1
+iterations = 200
 elevator_types = {"Oracle": Oracle_Elevator, "Do Nothing": DoNothing_Elevator, "L-RI": LRI_Elevator, "Pursuit": Pursuit_Elevator}
-elevator_types = {"Do Nothing": DoNothing_Elevator, "LRI": LRI_Elevator, "Pursuit": Pursuit_Elevator}
+#elevator_types = {"Do Nothing": DoNothing_Elevator, "LRI": LRI_Elevator, "Pursuit": Pursuit_Elevator}
+#elevator_types = {"Do Nothing": DoNothing_Elevator, "Pursuit": Pursuit_Elevator}
 distributions = {"Normal": normal_dist, "Bimodal": bimodal_dist, "Exponential": exp_dist, "Reverse exponential": rev_exp_dist}
 distributions = {"Exponential": exp_dist}
-floors_list = [8]
-for etype in elevator_types:
-    print("-----")
-    print("AWT for", etype, "models,", elevators, "elevators")
-    print("-----")
-    for dist in distributions:
-        for floors in floors_list:
-            env = Environment(distributions[dist][floors], uniform_dist[floors], elevators, floors)
-            bank = ElevatorBank(env, elevator_types[etype], elevators, floors, 0.1)
-            bank.simulate(iterations)
-            print(dist, floors, "floors:", env.total_distance/iterations, bank.elevators[0].get_best_floor())
-#            print(bank.elevators[0].floor_probs)
-#            print("Penalties:", env.penalties)
-#            print("ePenalties:", bank.elevators[0].penalties)
-#            print("Calls:", bank.calls)
-#            print("Rest floors:", bank.elevators[0].rest_floors)
-    print()
-
-ensembles = 200
-floors_list = [8, 12, 16, 20]
-elevators = 5
 for etype in elevator_types:
     print("-----")
     print("AWT for", etype, "models,", elevators, "elevators", ensembles, "ensembles of", iterations, "iterations")
@@ -475,9 +462,21 @@ for etype in elevator_types:
     for dist in distributions:
         for floors in floors_list:
             total_average = 0.0
+            AWT = np.array([0.0 for i in range(iterations)])
             for i in range(ensembles):
                 env = Environment(distributions[dist][floors], uniform_dist[floors], elevators, floors)
                 bank = ElevatorBank(env, elevator_types[etype], elevators, floors, 0.1)
                 bank.simulate(iterations)
                 total_average += env.total_distance/iterations
+                AWT += env.AWT
+#            print("Rest floors:", bank.elevators[0].rest_floors)
             print(dist, floors, "floors:", total_average/ensembles)
+            plt.plot(AWT/ensembles, linestyle = 'solid')
+            print("AWT sum:", AWT.sum()/iterations, "total average:", total_average)
+            plt.show()
+#            print(bank.elevators[0].floor_probs)
+#            print("Penalties:", env.penalties)
+#            print("ePenalties:", bank.elevators[0].penalties)
+#            print("Calls:", bank.calls)
+#            print("Rest floors:", bank.elevators[0].rest_floors)
+            
