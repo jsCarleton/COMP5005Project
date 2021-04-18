@@ -244,6 +244,7 @@ class Environment():
         return penalty
 
     def get_best_floor(self):
+        return get_random_floor(self.call_probs)
         best_prob = 0
         best_floor = 0
         for i in range(self.n_floors):
@@ -446,11 +447,45 @@ class ElevatorBank():
 #        print(self.elevators[0].floor, self.elevators[0].floor_probs)
 #        print(self.elevators[1].floor, self.elevators[1].floor_probs)
 
-ensembles = 1
+
+ensembles = 200
+iterations = 1000
+elevators = 2
+floors = 16
+elevator_types = {"Oracle": Oracle_Elevator, "Do Nothing": DoNothing_Elevator, "L-RI": LRI_Elevator, "Pursuit": Pursuit_Elevator}
+dist = exp_dist
+distname = "Exponential"
+AWT = np.array([np.array([0.0 for i in range(iterations)]) for j in range(len(elevator_types))])
+index = 0
+for e in elevator_types:
+    total_average = 0.0
+    for i in range(ensembles):
+        env = Environment(dist[floors], uniform_dist[floors], elevators, floors)
+        bank = ElevatorBank(env, elevator_types[e], elevators, floors, 0.1)
+        bank.simulate(iterations)
+        total_average += env.total_distance/iterations
+        AWT[index] += env.AWT
+    index += 1
+#            print("Rest floors:", bank.elevators[0].rest_floors)
+plt.ylabel("AWT")
+plt.xlabel("Iteration")
+plt.title(" All elevator types, " + str(elevators) + " elevators, " + str(floors) + " floors")
+plt.plot(AWT[0]/ensembles, linestyle = 'solid', label='Oracle')
+plt.plot(AWT[1]/ensembles, linestyle = 'dashed', label='Do Nothing')
+plt.plot(AWT[2]/ensembles, linestyle = 'dashed', label='L-RI')
+plt.plot(AWT[3]/ensembles, linestyle = 'dashed', label='Pursuit')
+legend = plt.legend(loc='lower right', shadow=True, fontsize='x-large')
+plt.show()
+exit()
+
+
+
+ensembles = 200
 floors_list = [8, 12, 16, 20]
 elevators = 1
-iterations = 200
+iterations = 1000
 elevator_types = {"Oracle": Oracle_Elevator, "Do Nothing": DoNothing_Elevator, "L-RI": LRI_Elevator, "Pursuit": Pursuit_Elevator}
+elevator_types = {"Oracle": Oracle_Elevator}
 #elevator_types = {"Do Nothing": DoNothing_Elevator, "LRI": LRI_Elevator, "Pursuit": Pursuit_Elevator}
 #elevator_types = {"Do Nothing": DoNothing_Elevator, "Pursuit": Pursuit_Elevator}
 distributions = {"Normal": normal_dist, "Bimodal": bimodal_dist, "Exponential": exp_dist, "Reverse exponential": rev_exp_dist}
@@ -471,12 +506,44 @@ for etype in elevator_types:
                 AWT += env.AWT
 #            print("Rest floors:", bank.elevators[0].rest_floors)
             print(dist, floors, "floors:", total_average/ensembles)
+            for i in range(elevators):
+                print("Elevator", i, "Floor", bank.elevators[i].floor)
+            plt.ylabel("AWT")
+            plt.xlabel("Iteration")
+            plt.title(etype+" Elevator, " + str(elevators) + " elevator(s), "+ str(floors) + " floors")
             plt.plot(AWT/ensembles, linestyle = 'solid')
-            print("AWT sum:", AWT.sum()/iterations, "total average:", total_average)
             plt.show()
 #            print(bank.elevators[0].floor_probs)
 #            print("Penalties:", env.penalties)
 #            print("ePenalties:", bank.elevators[0].penalties)
 #            print("Calls:", bank.calls)
 #            print("Rest floors:", bank.elevators[0].rest_floors)
-            
+exit()
+
+ensembles = 200
+iterations = 1000
+elevators = [1,2]
+floors = 12
+elevator_type = Oracle_Elevator
+etype = "Oracle"
+dist = exp_dist
+distname = "Exponential"
+AWT = np.array([np.array([0.0 for i in range(iterations)]) for j in range(len(elevators))])
+for e in range(len(elevators)):
+    total_average = 0.0
+    for i in range(ensembles):
+        env = Environment(dist[floors], uniform_dist[floors], elevators[e], floors)
+        bank = ElevatorBank(env, elevator_type, elevators[e], floors, 0.1)
+        bank.simulate(iterations)
+        total_average += env.total_distance/iterations
+        AWT[e] += env.AWT
+#            print("Rest floors:", bank.elevators[0].rest_floors)
+plt.ylabel("AWT")
+plt.xlabel("Iteration")
+plt.title(etype+" Elevator, " + str(floors) + " floors")
+plt.plot(AWT[0]/ensembles, linestyle = 'solid', label='1 elevator')
+plt.plot(AWT[1]/ensembles, linestyle = 'dashed', label='2 elevators')
+legend = plt.legend(loc='lower right', shadow=True, fontsize='x-large')
+plt.show()
+exit()
+
